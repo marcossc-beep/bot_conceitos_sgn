@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automação de Lançamento - SGN</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .terminal {
+            font-family: 'Fira Code', 'Courier New', Courier, monospace;
+            scrollbar-width: thin;
+            scrollbar-color: #4b5563 #111827;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="bg-blue-600 p-6">
+            <h1 class="text-2xl font-bold text-white flex items-center gap-2">
+                🚀 Automação de Diário SGN
+            </h1>
+            <p class="text-blue-100 text-sm">Selecione a turma e a UC para preenchimento automático.</p>
+        </div>
+
+        <form id="automationForm" class="p-6 space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Selecione a Turma</label>
+                    <select id="selectTurma" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+                        <option value="">Carregando turmas...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Selecione a UC (Link)</label>
+                    <select id="selectUC" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border">
+                        <option value="">Carregando UCs...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Usuário SGN</label>
+                    <input type="text" id="user" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Senha</label>
+                    <input type="password" id="password" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Link do Diário</label>
+                <input type="url" id="diaryLink" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border bg-gray-50">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Avaliação (Ex: AV1, AV2...)</label>
+                <input type="text" id="avSelection" required placeholder="Ex: AV1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Dados dos Alunos (JSON)</label>
+                <textarea id="jsonData" rows="8" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border terminal text-xs bg-gray-900 text-green-400"></textarea>
+            </div>
+
+            <button type="submit" id="btnSubmit" class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-bold hover:bg-blue-700 transition-colors">
+                Iniciar Automação
+            </button>
+        </form>
+
+        <div id="logContainer" class="p-6 bg-gray-900 border-t border-gray-800 hidden">
+            <h3 class="text-gray-400 text-xs font-bold uppercase mb-2">Logs de Execução</h3>
+            <div id="terminal" class="terminal h-64 overflow-y-auto text-sm space-y-1"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000';
+        let dadosTurmas = {};
+        let dadosUCs = {};
+
+        // Carregar dados ao iniciar
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const [resTurmas, resUCs] = await Promise.all([
+                    fetch(`${API_URL}/turmas`),
+                    fetch(`${API_URL}/ucs`)
+                ]);
+                
+                dadosTurmas = await resTurmas.json();
+                dadosUCs = await resUCs.json();
+
+                populateSelects();
+            } catch (err) {
+                console.error("Erro ao carledados:", err);
+            }
+        });
+
+        function populateSelects() {
+            const st = document.getElementById('selectTurma');
+            const sc = document.getElementById('selectUC');
+
+            st.innerHTML = '<option value="">Escolha uma turma</option>';
+            Object.keys(dadosTurmas).forEach(t => {
+                st.innerHTML += `<option value="${t}">${t}</option>`;
+            });
+
+            sc.innerHTML = '<option value="">Escolha a UC</option>';
+            Object.keys(dadosUCs).forEach(uc => {
+                sc.innerHTML += `<option value="${dadosUCs[uc]}">${uc}</option>`;
+            });
+        }
+
+        // Evento: Selecionar Turma (Preenche JSON)
+        document.getElementById('selectTurma').addEventListener('change', (e) => {
+            const turma = e.target.value;
+            if (turma && dadosTurmas[turma]) {
+                const listaAlunos = dadosTurmas[turma].map(nome => ({
+                    nome: nome,
+                    conceito: "C"
+                }));
+                document.getElementById('jsonData').value = JSON.stringify(listaAlunos, null, 2);
+            }
+        });
+
+        // Evento: Selecionar UC (Preenche Link)
+        document.getElementById('selectUC').addEventListener('change', (e) => {
+            document.getElementById('diaryLink').value = e.target.value;
+        });
+
+        // Lógica de envio (Mantida do seu original)
+        document.getElementById('automationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btnSubmit = document.getElementById('btnSubmit');
+            const terminal = document.getElementById('terminal');
+            const logContainer = document.getElementById('logContainer');
+
+            const payload = {
+                user: document.getElementById('user').value,
+                password: document.getElementById('password').value,
+                diaryLink: document.getElementById('diaryLink').value,
+                avSelection: document.getElementById('avSelection').value,
+                jsonData: JSON.parse(document.getElementById('jsonData').value)
+            };
+
+            btnSubmit.disabled = true;
+            btnSubmit.classList.add('opacity-50', 'cursor-not-allowed');
+            logContainer.classList.remove('hidden');
+            terminal.innerHTML = '';
+
+            const log = (msg, type = 'info') => {
+                const p = document.createElement('p');
+                p.className = type === 'error' ? 'text-red-400' : (type === 'warn' ? 'text-yellow-400' : 'text-gray-300');
+                p.textContent = `> ${msg}`;
+                terminal.appendChild(p);
+                terminal.scrollTop = terminal.scrollHeight;
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/start-automation`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                if (!data.success) throw new Error(data.message);
+
+                let lastLogCount = 0;
+                const pollInterval = setInterval(async () => {
+                    const res = await fetch(`${API_URL}/status/${data.jobId}`);
+                    const statusData = await res.json();
+
+                    if (statusData.success) {
+                        const novosLogs = statusData.logs.slice(lastLogCount);
+                        novosLogs.forEach(msg => log(msg));
+                        lastLogCount = statusData.logs.length;
+
+                        if (statusData.status === 'completed' || statusData.status === 'error') {
+                            clearInterval(pollInterval);
+                            btnSubmit.disabled = false;
+                            btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed');
+                        }
+                    }
+                }, 3000);
+            } catch (err) {
+                log(`Erro: ${err.message}`, 'error');
+                btnSubmit.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

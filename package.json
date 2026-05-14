@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "build": "chmod +x render-build.sh && ./render-build.sh"
   },
   "dependencies": {
     "@browserbasehq/stagehand": "^3.1.0",

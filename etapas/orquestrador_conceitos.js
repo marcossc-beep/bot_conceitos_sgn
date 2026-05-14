@@ -31,10 +31,13 @@ export async function runConceitosAutomation({ user, password, diaryLink, avSele
   const sessionCookies = await loginPage.cookies();
   await loginBrowser.close();
 
+  const isProd = process.env.prod === 'true';
+
   const browser = await puppeteer.launch({
-    headless: false,
+    headless: isProd, // Aplica a lógica aqui também
     args: ["--no-sandbox", "--disable-setuid-sandbox"]
   });
+  
 
   const page = await browser.newPage();
   await page.setViewport({ width: 1680, height: 1050 });

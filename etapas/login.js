@@ -1,6 +1,9 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 
+import "dotenv/config";
+import path from "path";
+
 // Adiciona os plugins de disfarce para evitar bloqueios
 puppeteer.use(StealthPlugin());
 
@@ -15,10 +18,14 @@ puppeteer.use(StealthPlugin());
 export async function realizarLogin(user, password, targetUrl, addLog) {
     addLog(`[Login] Iniciando navegador...`);
     
+    // Verifica se prod é true no .env (converte para booleano)
+    const isProd = process.env.prod === 'true';
+
     const browser = await puppeteer.launch({
-        headless: false, // Deixe false para ver o bot trabalhando
-        args: ['--start-maximized', '--no-sandbox']
+        headless: isProd, // Fica true em produção e false em desenvolvimento
+        args: ['--start-maximized', '--no-sandbox', '--disable-setuid-sandbox']
     });
+    addLog(`[DEBUG] Chrome executável em: ${browser.process().spawnfile}`);
 
     const page = await browser.newPage();
     await page.setViewport({ width: 1366, height: 768 });

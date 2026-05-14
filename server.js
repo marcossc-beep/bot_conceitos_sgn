@@ -90,6 +90,24 @@ fastify.get('/ucs', async (request, reply) => {
     }
 });
 
-fastify.listen({ port: 3000, host: '0.0.0.0' }, () => {
-  console.log('🚀 Servidor rodando na porta 3000 com sistema de Polling Ativo!');
+// Rota para servir o frontend (index.html) na raiz
+fastify.get('/', async (request, reply) => {
+  try {
+    const html = await fs.readFile(path.join(process.cwd(), 'index.html'), 'utf8');
+    return reply.type('text/html').send(html);
+  } catch (err) {
+    return reply.status(500).send({ error: 'Erro ao carregar o index.html' });
+  }
 });
+
+const start = async () => {
+  try {
+    const port = process.env.PORT || 3000;
+    await fastify.listen({ port, host: '0.0.0.0' });
+    console.log(`🚀 Servidor rodando em: http://localhost:${port}`);
+  } catch (err) {
+    fastify.log.error(err);
+    process.exit(1);
+  }
+};
+start();
